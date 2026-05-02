@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sentence-transformers
+scikit-learn
+pandas
+numpy
+python-dotenv
+python-multipart
+networkx
+umap-learn
+torch
+transformers
