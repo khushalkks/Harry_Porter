@@ -5,10 +5,39 @@ import { IoClose, IoFlashOutline, IoShieldCheckmarkOutline, IoHeartOutline } fro
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  characterName: string;
+  characterData: any;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, characterName }) => {
+// Helper to generate deterministic but dynamic-looking data based on name
+const getCharacterMeta = (name: string) => {
+  const nameLower = name.toLowerCase() || "";
+  let house = "Ravenclaw";
+  let houseColor = "bg-blue-500";
+  let role = "Supporting Character";
+  
+  const gryffindors = ["harry", "ron", "hermione", "sirius", "hagrid", "mcgonagall", "neville", "ginny", "fred", "george"];
+  const slytherins = ["draco", "voldemort", "snape", "bellatrix", "lucius", "umbridge"];
+  const hufflepuffs = ["cedric"];
+  
+  if (gryffindors.some(n => nameLower.includes(n))) { house = "Gryffindor"; houseColor = "bg-red-500"; }
+  else if (slytherins.some(n => nameLower.includes(n))) { house = "Slytherin"; houseColor = "bg-green-500"; }
+  else if (hufflepuffs.some(n => nameLower.includes(n))) { house = "Hufflepuff"; houseColor = "bg-yellow-500"; }
+  else if (nameLower.includes("dumbledore")) { house = "Hogwarts"; houseColor = "bg-wizard-gold"; role = "Headmaster"; }
+  
+  if (nameLower.includes("harry") || nameLower.includes("voldemort")) role = "Central Protagonist";
+  else if (nameLower.includes("snape") || nameLower.includes("dumbledore") || nameLower.includes("hermione") || nameLower.includes("ron")) role = "Main Character";
+  
+  // Deterministic stats based on string length and char codes so they stay consistent
+  const seed = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const power = 70 + (seed % 30);
+  const loyalty = 60 + ((seed * 2) % 40);
+  const empathy = 40 + ((seed * 3) % 60);
+
+  return { house, houseColor, role, power, loyalty, empathy };
+};
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, characterData }) => {
+  const meta = characterData ? getCharacterMeta(characterData.name) : getCharacterMeta("");
   return (
     <AnimatePresence>
       {isOpen && (
@@ -34,18 +63,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, characterName }) => 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <h2 className="magic-text text-5xl font-bold mb-2">{characterName || "Harry Potter"}</h2>
+            <h2 className="magic-text text-5xl font-bold mb-2">{characterData?.name || "Harry Potter"}</h2>
             <div className="flex items-center space-x-2 text-slate-500 text-xs font-medium uppercase tracking-widest mb-10">
-              <span className="w-2 h-2 rounded-full bg-gryffindor"></span>
-              <span>Gryffindor House</span>
+              <span className={`w-2 h-2 rounded-full ${meta.houseColor}`}></span>
+              <span>{meta.house} House</span>
               <span className="text-white/10">|</span>
-              <span>Central Protagonist</span>
+              <span>{meta.role}</span>
             </div>
             
             <div className="grid grid-cols-3 gap-4 mb-12">
-              <StatBox icon={<IoFlashOutline />} label="Power" value="98" color="text-yellow-400" />
-              <StatBox icon={<IoShieldCheckmarkOutline />} label="Loyalty" value="100" color="text-green-400" />
-              <StatBox icon={<IoHeartOutline />} label="Empathy" value="85" color="text-red-400" />
+              <StatBox icon={<IoFlashOutline />} label="Power" value={meta.power.toString()} color="text-yellow-400" />
+              <StatBox icon={<IoShieldCheckmarkOutline />} label="Loyalty" value={meta.loyalty.toString()} color="text-green-400" />
+              <StatBox icon={<IoHeartOutline />} label="Empathy" value={meta.empathy.toString()} color="text-red-400" />
             </div>
 
             <section className="mb-12">
@@ -54,9 +83,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, characterName }) => 
                 <span className="text-[10px] text-slate-500 uppercase">Vector Space Dist.</span>
               </div>
               <div className="space-y-6">
-                <SimilarityBar label="Hermione Granger" value={94} color="bg-wizard-gold" />
-                <SimilarityBar label="Ron Weasley" value={91} color="bg-wizard-gold" />
-                <SimilarityBar label="Albus Dumbledore" value={76} color="bg-wizard-gold/50" />
+                {characterData?.similar?.length > 0 ? (
+                  characterData.similar.map((sim: any, idx: number) => {
+                    const percentage = Math.round(sim.score * 100);
+                    return (
+                      <SimilarityBar 
+                        key={idx} 
+                        label={sim.name} 
+                        value={percentage} 
+                        color={idx === 0 ? "bg-wizard-gold" : "bg-wizard-gold/50"} 
+                      />
+                    );
+                  })
+                ) : (
+                  <div className="text-slate-500 text-sm">No connections mapped yet.</div>
+                )}
               </div>
             </section>
 
@@ -66,10 +107,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, characterName }) => 
                 <div className="absolute inset-0 bg-gradient-to-br from-wizard-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="flex items-center justify-between relative z-10">
                   <div className="space-y-1">
-                    <div className="text-2xl font-bold text-white">Aggressive</div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">Dominant Tone</div>
+                    <div className="text-xl font-bold text-white">{characterData?.sentiment_label || "Neutral"}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">TextBlob Polarity</div>
                   </div>
-                  <div className="text-4xl font-light text-wizard-gold opacity-50">8.4</div>
+                  <div className={`text-4xl font-light opacity-80 ${characterData?.sentiment_score < -0.05 ? "text-red-500" : "text-wizard-gold"}`}>
+                    {characterData?.sentiment_score !== undefined ? characterData.sentiment_score.toFixed(2) : "0.00"}
+                  </div>
                 </div>
               </div>
             </section>

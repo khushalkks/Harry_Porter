@@ -1,28 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GalaxyScene from '../components/galaxy/GalaxyScene';
 import Sidebar from '../components/ui/Sidebar';
 import SearchBar from '../components/ui/SearchBar';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const GalaxyExplorer: React.FC = () => {
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const [charactersData, setCharactersData] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/characters")
+      .then(res => res.json())
+      .then(data => setCharactersData(data))
+      .catch(err => console.error("Failed to fetch characters", err));
+  }, []);
+
+  const selectedData = charactersData.find(c => c.name === selectedCharacter);
+
+  const handleSearch = (query: string) => {
+    if (!query) return;
+    const lowerQuery = query.toLowerCase();
+    const match = charactersData.find(c => c.name.toLowerCase().includes(lowerQuery));
+    if (match) {
+      setSelectedCharacter(match.name);
+    }
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-wizard-dark">
       {/* 3D Scene */}
-      <GalaxyScene onCharacterSelect={(name) => setSelectedCharacter(name)} />
+      <GalaxyScene charactersData={charactersData} selectedCharacter={selectedCharacter} onCharacterSelect={(name) => setSelectedCharacter(name)} />
 
       {/* UI Overlays */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 pointer-events-none">
         <div className="pointer-events-auto">
-          <SearchBar onSearch={(q) => console.log('Search:', q)} />
+          <SearchBar onSearch={handleSearch} />
         </div>
       </div>
 
       <Sidebar 
         isOpen={!!selectedCharacter} 
         onClose={() => setSelectedCharacter(null)}
-        characterName={selectedCharacter || ""}
+        characterData={selectedData || null}
       />
 
       {/* HUD Info */}
